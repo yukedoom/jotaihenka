@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>水の三態 絶対零度からプラズマまで</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cstyle%3E.b%7Bfill:%23000%7D.f%7Bfill:%23fff%7D@media(prefers-color-scheme:dark)%7B.b%7Bfill:%23fff%7D.f%7Bfill:%23000%7D%7D%3C/style%3E%3Crect class='b' width='32' height='32' rx='8'/%3E%3Cpath class='f' d='M16 6c4 5 7 8.5 7 12a7 7 0 0 1-14 0c0-3.5 3-7 7-12z'/%3E%3Ccircle class='b' cx='13.500' cy='19.500' r='1.800'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#fff;--fg:#000;--mut:#6b6b6b;--line:#d4d4d4;--soft:#f3f3f3;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--fg:#fff;--mut:#9a9a9a;--line:#333;--soft:#111;color-scheme:dark}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.6 "Inter","Helvetica Neue","Hiragino Sans","Yu Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1320px;margin:0 auto;padding:20px 20px 48px}
+header{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-end;padding-bottom:16px;border-bottom:2px solid var(--fg)}
+h1{font-size:1.7rem;font-weight:300;letter-spacing:.02em;line-height:1.2}
+h1 b{font-weight:800}
+header p{color:var(--mut);font-size:.82rem;margin-top:4px}
+.seg{display:inline-flex;border:1px solid var(--fg)}
+.seg button{background:none;border:0;padding:7px 14px;cursor:pointer;font-weight:600;font-size:.82rem}
+.seg button+button{border-left:1px solid var(--fg)}
+.seg button.on{background:var(--fg);color:var(--bg)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+.grp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grp>span{color:var(--mut);font-size:.78rem}
+.chip{background:none;border:1px solid var(--line);padding:5px 12px;cursor:pointer;font-size:.8rem;font-weight:600}
+.chip.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.chip:hover{border-color:var(--fg)}
+.view{display:none;padding-top:20px}.view.on{display:block}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:22px}
+.sec{border-top:1px solid var(--fg);padding-top:10px}
+.sec h2{font-size:.86rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sec h2 small{font-weight:400;color:var(--mut)}
+.cv{position:relative;width:100%;background:var(--soft)}
+canvas{display:block;width:100%}
+#cv-main{aspect-ratio:1/1.02}
+#cv-graph{aspect-ratio:16/9}
+.tag{position:absolute;left:10px;top:8px;font-size:.78rem;font-weight:700;background:var(--bg);border:1px solid var(--fg);padding:1px 10px}
+.hero{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px}
+.big{font-size:clamp(2.6rem,7vw,4.6rem);font-weight:200;letter-spacing:-.03em;line-height:1;overflow-wrap:anywhere}
+.big small{font-size:.35em;font-weight:400;margin-left:6px;letter-spacing:0}
+.sub{color:var(--mut);font-size:1rem}
+.phase{font-size:1.05rem;font-weight:700;margin-top:6px}
+.mets{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line)}
+.mets div{padding:8px 12px}.mets div+div{border-left:1px solid var(--line)}
+.mets i{display:block;font-style:normal;color:var(--mut);font-size:.72rem}
+.mets b{font-size:1.02rem;font-weight:600}
+.comp{display:flex;height:14px;border:1px solid var(--fg);margin:8px 0 6px}
+.comp div{height:100%;transition:width .2s}
+.s0{background:var(--fg)}.s1{background:var(--fg);opacity:.65}.s2{background:var(--fg);opacity:.38}.s3{background:var(--fg);opacity:.18}
+.s4{background:repeating-linear-gradient(45deg,var(--fg) 0 2px,transparent 2px 5px)}
+.lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.74rem;color:var(--mut)}
+.lg b{color:var(--fg);font-weight:600}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--fg)}
+.modes button{background:none;border:0;padding:10px;cursor:pointer;font-weight:700}
+.modes button+button{border-left:1px solid var(--fg)}
+.modes button.on{background:var(--fg);color:var(--bg)}
+input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.in{border:1px solid var(--fg);background:var(--bg);padding:6px 10px;width:150px}
+.msg{min-height:1.4em;font-size:.78rem;color:var(--mut)}
+.pre{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+@media(max-width:560px){.pre{grid-template-columns:repeat(2,1fr)}}
+.pre button{background:none;border:1px solid var(--line);padding:8px 6px;cursor:pointer;text-align:left;line-height:1.35;font-weight:600;font-size:.8rem}
+.pre button:hover{border-color:var(--fg)}
+.pre span{display:block;font-weight:400;color:var(--mut);font-size:.7rem}
+.exp p{margin-bottom:6px;max-width:62ch}
+.exp p:first-child{font-weight:700;font-size:1rem}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+@media(max-width:900px){.three{grid-template-columns:1fr}}
+.ic{width:18px;height:18px;vertical-align:-3px;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1><svg class="ic" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4c4 5 8 9 8 14a8 8 0 0 1-16 0c0-5 4-9 8-14z"/></svg><b>水の三態</b> 絶対零度からプラズマまで</h1>
+    <p>1気圧・1gの水に熱を加え続けたとき、粒子に何が起きるかを観察する</p>
+  </div>
+  <div class="seg" role="tablist">
+    <button id="tab-c" class="on" role="tab">連続変化</button>
+    <button id="tab-p" role="tab">三態比較</button>
+  </div>
+</header>
+
+<div class="bar">
+  <div class="grp"><span>表示</span>
+    <button class="chip" id="o-vec">速度の矢印</button>
+    <button class="chip on" id="o-trail">注目粒子の軌跡</button>
+    <button class="chip on" id="o-bond">分子間の結びつき</button>
+  </div>
+  <div class="grp"><span>再生</span>
+    <div class="seg"><button class="on" data-ts="1">通常</button><button data-ts="0.3">スロー</button><button data-ts="0">停止</button></div>
+    <button class="chip" id="reset">初期状態に戻す</button>
+  </div>
+</div>
+
+<main class="view on" id="v-c">
+ <div class="grid">
+  <div class="col">
+   <section class="sec">
+    <h2>ピストン付き容器 <small>圧力 1 atm 一定 / 粒子60個 / 高さは体積の対数表示</small></h2>
+    <div class="cv"><canvas id="cv-main"></canvas><div class="tag" id="tag-main">氷</div></div>
+   </section>
+   <section class="sec">
+    <h2>加熱と冷却 <small>熱の出入り: <span id="pw-lbl" class="num">80 J/g/秒</span></small></h2>
+    <div class="modes"><button id="m-heat">加熱</button><button id="m-cool">冷却</button><button id="m-hold" class="on">維持</button></div>
+    <div class="grp" style="margin-top:10px"><span>強さ</span>
+      <button class="chip on" data-pw="1">x1</button><button class="chip" data-pw="10">x10</button><button class="chip" data-pw="100">x100</button><button class="chip" data-pw="1000">x1000</button><button class="chip" data-pw="10000">x10000</button>
+    </div>
+    <div style="margin-top:14px"><div class="lg" style="justify-content:space-between"><span>0 K</span><span>10 K</span><span>1000 K</span><span>10^5 K</span><span>10^8 K</span></div>
+    <input type="range" id="sl" min="0" max="1000" step="1" value="0" aria-label="温度スライダー(対数目盛り)"></div>
+    <div class="row"><input class="in num" id="tin" inputmode="decimal" placeholder="温度を入力" aria-label="温度"><select class="in" id="tun" style="width:80px"><option value="K">K</option><option value="C">℃</option></select><button class="chip" id="tgo">この温度にする</button></div>
+    <div class="msg" id="msg"></div>
+    <div class="pre" style="margin-top:8px" id="pre"></div>
+   </section>
+  </div>
+  <div class="col">
+   <section class="sec">
+    <div class="hero"><div class="big num" id="tk">253.15<small>K</small></div><div class="sub num" id="tc">-20.00 ℃</div></div>
+    <div class="phase" id="ph">固体(氷)</div>
+   </section>
+   <section class="sec">
+    <h2>温度の時間変化 <small><button class="chip" id="g-log">対数軸</button> <button class="chip" id="g-reset">記録を消す</button></small></h2>
+    <div class="cv"><canvas id="cv-graph"></canvas></div>
+    <div class="lg" style="margin-top:6px"><span>実線 = 加熱</span><span>破線 = 冷却</span><span>点線 = 維持</span><span>水平区間 = 潜熱</span></div>
+   </section>
+   <section class="sec">
+    <div class="mets">
+      <div><i>経過時間</i><b class="num" id="m-t">0.0 秒</b></div>
+      <div><i>体積 (4℃の水=1)</i><b class="num" id="m-v">1.09</b></div>
+      <div><i>熱運動の速さ</i><b class="num" id="m-s">0 m/s</b></div>
+    </div>
+    <div class="comp"><div class="s0" id="c0"></div><div class="s1" id="c1"></div><div class="s2" id="c2"></div><div class="s3" id="c3"></div><div class="s4" id="c4"></div></div>
+    <div class="lg"><span>固体 <b id="p0">100%</b></span><span>液体 <b id="p1">0%</b></span><span>気体(分子) <b id="p2">0%</b></span><span>原子 <b id="p3">0%</b></span><span>電離 <b id="p4">0%</b></span></div>
+    <div class="lg" style="margin-top:4px"><span>熱量 <b class="num" id="m-h">0 J/g</b></span></div>
+   </section>
+   <section class="sec exp" id="exp"></section>
+  </div>
+ </div>
+</main>
+
+<main class="view" id="v-p">
+ <div class="three" id="three"></div>
+</main>
+</div>
+
+<script>
+(()=>{"use strict";
+/* ---------- 熱力学: 比エンタルピー H(T) [J/g] とその逆変換 ---------- */
+const TM=273.15,TB=373.15,LF=334,LV=2260,LD=50900,LI=218500,TD=3500,WD=.35,TI=15000,WI=.3;
+const sig=(T,T0,w)=>T<=0?0:1/(1+Math.exp(-(Math.log(T/T0))/w));
+const aD=T=>sig(T,TD,WD),aI=T=>sig(T,TI,WI);
+function cp(T,mid){
+  if(mid<TM)return 2.09*T**3/(T**3+1e6);            // 氷: デバイ型(T→0で比熱→0)
+  if(mid<TB)return 4.18;                              // 水
+  if(T<=0)return 2;
+  const d=aD(T),i=aI(T);
+  return 2+1.5*d+6*i+LD*d*(1-d)/(WD*T)+LI*i*(1-i)/(WI*T); // 水蒸気+解離+電離
+}
+const Th=[0],Hh=[0];
+(()=>{const g=[0];for(let i=0;i<=3000;i++)g.push(1e-3*Math.pow(1e13,i/3000));g.push(TM,TB);g.sort((a,b)=>a-b);
+ for(let k=1;k<g.length;k++){const a=g[k-1],b=g[k],m=(a+b)/2;
+  let H=Hh[Hh.length-1]+.5*(cp(a,m)+cp(b,m))*(b-a);Th.push(b);Hh.push(H);
+  if(b===TM){Th.push(b);Hh.push(H+LF)}if(b===TB){Th.push(b);Hh.push(H+LV)}}})();
+const NT=Th.length-1,CPE=cp(Th[NT],Th[NT]);
+function tempToH(T){
+  if(T<=0)return 0;
+  if(T>=Th[NT])return Hh[NT]+CPE*(T-Th[NT]);
+  let lo=0,hi=NT;while(hi-lo>1){const m=(lo+hi)>>1;Th[m]<T?lo=m:hi=m}
+  if(Th[hi]===T){return Th[hi+1]===T?(Hh[hi]+Hh[hi+1])/2:(Th[hi-1]===T?(Hh[hi]+Hh[hi-1])/2:Hh[hi])}
+  return Hh[lo]+(Hh[hi]-Hh[lo])*(T-Th[lo])/(Th[hi]-Th[lo]);
+}
+function stateOf(H){
+  H=Math.max(0,H);let T,so=0,li=0,ga=0;
+  if(H>=Hh[NT])T=Th[NT]+(H-Hh[NT])/CPE;
+  else{let lo=0,hi=NT;while(hi-lo>1){const m=(lo+hi)>>1;Hh[m]<H?lo=m:hi=m}
+   if(Th[lo]===Th[hi]){T=Th[lo];const f=(H-Hh[lo])/(Hh[hi]-Hh[lo]);if(T===TM){so=1-f;li=f}else{li=1-f;ga=f}}
+   else T=Th[lo]+(Th[hi]-Th[lo])*(H-Hh[lo])/(Hh[hi]-Hh[lo]);}
+  if(!(so||li||ga)){if(T<TM)so=1;else if(T<TB)li=1;else ga=1}
+  if(T===TM&&!so&&!li){so=1}
+  const d=ga?aD(T):0,i=ga?aI(T):0,n=1+2*d+10*i;
+  const Vs=1.0905-1e-5*(TM-Math.min(T,TM)),Vl=1+4.2e-4*Math.max(0,T-277.15),Vg=4.555*T*n;
+  const V=so*Vs+li*Vl+ga*Vg;
+  let ph;
+  if(H===0)ph="zero";else if(ga>.995&&d<.05)ph="steam";else if(ga>.995&&d<.95)ph="diss";else if(ga>.995&&i<.05)ph="atom";else if(ga>.995&&i<.95)ph="ion";else if(ga>.995)ph="plasma";
+  else if(ga>.005)ph="boil";else if(li>.995)ph="water";else if(so>.995)ph="ice";else ph="melt";
+  return{H,T,so,li,ga,d,i,V,ph};
+}
+const speedOf=T=>{const raw=.2*Math.sqrt(T/300),vm=1.6;return vm*Math.tanh(raw/vm)+.004};
+const pistonOf=V=>Math.min(.9,.3+.6*Math.max(0,Math.log10(V/.9))/9);
+
+/* ---------- 表示文 ---------- */
+const PH={
+zero:["絶対零度(0 K)","これ以上は冷やせない下限。分子は格子の位置でほぼ静止し、量子力学的な零点振動だけが残る。比熱も0に近づくため、わずかな熱の出入りで温度が大きく動く。"],
+ice:["固体(氷)","分子は結晶格子の位置に固定され、その場で振動するだけ。温度が上がると振動が大きくなる。氷は隙間の多い構造のため、水より体積が約9%大きい。"],
+melt:["融解中(273.15 K)","加えた熱は温度上昇でなく、結晶を崩す潜熱(334 J/g)に使われる。固体と液体が共存し、温度は一定のまま。"],
+water:["液体(水)","分子は互いに引き合ってまとまりを保ちつつ、位置を入れ替えながら動く。形は容器に従い、体積はほぼ変わらない。"],
+boil:["沸騰中(373.15 K)","潜熱(2260 J/g)を吸収して分子が液体から飛び出す。温度は一定のまま体積が約1700倍に膨らみ、ピストンが押し上げられる。"],
+steam:["気体(水蒸気)","分子は分子間力を振り切って自由に飛び回る。体積は絶対温度に比例して増える。"],
+diss:["熱解離(約2000〜6000 K)","熱運動が分子内の結合(O-H)を上回り、H2OがHやOなどに分かれていく。粒子の数が増えるため体積も増える。吸熱で温度の上がり方が鈍る。"],
+atom:["原子ガス","分子はほぼ原子に分解された状態。まだ電子は原子核に束縛されている。"],
+ion:["電離中(約10^4 K以上)","衝突の勢いで電子が原子から引きはがされ始める。電子と陽イオンが混ざり、電気を通すようになる。"],
+plasma:["プラズマ","原子はほぼ電離し、電子とイオンが自由に飛び回る。クーロン力で引き合い反発し合い、強く発光する。宇宙の物質の大半はこの状態。"]};
+const PRE=[["絶対零度",0,"0 K"],["氷",253.15,"-20 ℃"],["融点",273.15,"0 ℃"],["常温の水",298.15,"25 ℃"],["沸点",373.15,"100 ℃"],["水蒸気",500,"227 ℃"],["熱解離",4000,"4000 K"],["プラズマ",50000,"5万 K"]];
+
+/* ---------- 粒子容器 ---------- */
+const O={vec:false,trail:true,bond:true,ts:1};
+const gauss=()=>Math.sqrt(-2*Math.log(Math.random()||1e-9))*Math.cos(6.2832*Math.random());
+const css=()=>{const s=getComputedStyle(document.documentElement);return{fg:s.getPropertyValue("--fg").trim(),bg:s.getPropertyValue("--bg").trim(),mut:s.getPropertyValue("--mut").trim(),line:s.getPropertyValue("--line").trim(),soft:s.getPropertyValue("--soft").trim()}};
+let C=css();matchMedia("(prefers-color-scheme:dark)").addEventListener("change",()=>{C=css()});
+function fit(cv){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.round(r.width*d),h=Math.round(r.height*d);if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}return[r.width,r.height,d]}
+
+class Chamber{
+ constructor(cv,n=60){this.cv=cv;this.n=n;this.R=.016;this.l=.12;this.r=.88;this.b=.93;this.t=0;this.pv=0;this.trail=[];this.setH(0);this.init();this.snap()}
+ setH(H){this.S=stateOf(H)}
+ init(){const n=this.n,R=this.R,cols=10,sx=.056,sy=.047,cx=.5,P=[];
+  for(let k=0;k<n;k++){const row=Math.floor(k/cols),col=k%cols,off=row%2?sx/2:0;
+   P.push({ax:cx-(cols-1)*sx/2+col*sx+off-sx/4,ay:this.b-R*1.6-row*sy,x:0,y:0,vx:0,vy:0,a:Math.random()*6.28,w:0,ph:Math.random()*6.28,q:k%2?1:-1})}
+  let mx=0;P.forEach(p=>{p.d=Math.hypot((p.ax-cx)*.85,p.ay-this.b+.12);mx=Math.max(mx,p.d)});
+  P.forEach(p=>{p.s=Math.min(.999,p.d/mx*.9+Math.random()*.09+.005)});
+  [...P].sort((a,b)=>(a.ay+Math.random()*.06)-(b.ay+Math.random()*.06)).forEach((p,i)=>{p.g=(i+.5)/n});
+  this.P=P;this.tr=P.reduce((a,p)=>Math.hypot(p.ax-.45,p.ay-.8)<Math.hypot(a.ax-.45,a.ay-.8)?p:a,P[0]);
+  this.pistonH=pistonOf(this.S.V)}
+ snap(){const S=this.S;this.pistonH=pistonOf(S.V);this.pv=0;this.trail=[];const top=this.b-this.pistonH,vt=speedOf(S.T);
+  for(const p of this.P){
+   if(p.s<S.so){p.x=p.ax;p.y=p.ay}
+   else if(p.g<S.ga){p.x=this.l+this.R+Math.random()*(this.r-this.l-2*this.R);p.y=top+this.R+Math.random()*(this.b-top-2*this.R)}
+   else{p.x=this.l+this.R+Math.random()*(this.r-this.l-2*this.R);p.y=this.b-this.R-Math.random()*.2}
+   p.vx=gauss()*vt;p.vy=gauss()*vt}}
+ step(dt){const S=this.S,R=this.R,sub=6,h=dt/sub;this.t+=dt;
+  const tg=pistonOf(S.V);this.pv+=((tg-this.pistonH)*18-this.pv*7.2)*dt;this.pistonH=Math.max(.26,Math.min(.9,this.pistonH+this.pv*dt));
+  const top=this.b-this.pistonH,vt=speedOf(S.T),P=this.P,K=900;
+  for(const p of P){p.sol=p.s<S.so;p.gas=p.g<S.ga}
+  for(let st=0;st<sub;st++){
+   for(const p of P){let ax=0,ay=0,gm;
+    if(p.sol){ax=-(p.x-p.ax)*K;ay=-(p.y-p.ay)*K;gm=9}
+    else if(p.gas)gm=1.2;else{ay=2.2;gm=2.5}
+    const nz=vt*Math.sqrt(2*gm*h);
+    p.vx+=(ax-gm*p.vx)*h+nz*gauss();p.vy+=(ay-gm*p.vy)*h+nz*gauss();
+    p.w+=(-p.w*3)*h+(Math.random()-.5)*(p.sol?2:20)*vt*h*10;}
+   for(let i=0;i<P.length;i++){const a=P[i];for(let j=i+1;j<P.length;j++){const b=P[j];
+    const dx=b.x-a.x,dy=b.y-a.y,q=dx*dx+dy*dy,mx=R*3.6;if(q>=mx*mx||q<1e-9){if(q>=mx*mx&&S.i>.05&&a.gas&&b.gas&&q<.09){const d=Math.sqrt(q),f=.02*S.i*a.q*b.q/(q+.004)*h;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f}continue}
+    const d=Math.sqrt(q),nx=dx/d,ny=dy/d,md=R*(a.gas||b.gas?1.9:2.02);
+    if(d<md){const ps=(md-d)*.5;a.x-=nx*ps;a.y-=ny*ps;b.x+=nx*ps;b.y+=ny*ps;const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(vn<0){const im=-vn;a.vx-=im*nx;a.vy-=im*ny;b.vx+=im*nx;b.vy+=im*ny}}
+    else if(!a.gas&&!b.gas&&!a.sol&&!b.sol){const f=6*(1-(d-md)/(mx-md))*h;a.vx+=nx*f;a.vy+=ny*f;b.vx-=nx*f;b.vy-=ny*f}}}
+   for(const p of P){p.x+=p.vx*h;p.y+=p.vy*h;p.a+=p.w*h;
+    if(p.x-R<this.l){p.x=this.l+R;p.vx=Math.abs(p.vx)}if(p.x+R>this.r){p.x=this.r-R;p.vx=-Math.abs(p.vx)}
+    if(p.y+R>this.b){p.y=this.b-R;p.vy=-Math.abs(p.vy)}if(p.y-R<top){p.y=top+R;p.vy=Math.abs(p.vy)+Math.max(0,this.pv)*.5}}}
+  this.trail.push([this.tr.x,this.tr.y]);if(this.trail.length>100)this.trail.shift()}
+ render(){const[W,H,d]=fit(this.cv),c=this.cv.getContext("2d"),S=this.S,R=this.R,s=Math.min(W,H),ox=(W-s)/2,oy=(H-s)/2;
+  c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,W,H);
+  const X=x=>ox+x*s,Y=y=>oy+y*s,top=this.b-this.pistonH;
+  if(S.T>2500){const e=Math.min(1,(Math.log10(S.T)-3.4)/1.6),m=S.i,rr=Math.round(255-80*m),gg=Math.round(150+40*m),bb=Math.round(60+195*m);
+   c.fillStyle=`rgba(${rr},${gg},${bb},${.08+.28*e})`;c.fillRect(X(this.l),Y(top),(this.r-this.l)*s,(this.b-top)*s)}
+  c.strokeStyle=C.fg;c.lineWidth=1.5;c.beginPath();c.moveTo(X(this.l),Y(.03));c.lineTo(X(this.l),Y(this.b));c.lineTo(X(this.r),Y(this.b));c.lineTo(X(this.r),Y(.03));c.stroke();
+  c.fillStyle=C.fg;c.fillRect(X(this.l)-2,Y(top)-.02*s,(this.r-this.l)*s+4,.02*s);c.fillRect(X(.5)-.01*s,Y(.02),.02*s,Y(top)-.02*s-Y(.02));
+  const P=this.P;
+  if(O.bond){c.strokeStyle=C.mut;c.globalAlpha=.45;c.lineWidth=1;c.beginPath();
+   for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j];if(a.gas||b.gas)continue;if(Math.hypot(a.x-b.x,a.y-b.y)<R*2.9){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}c.stroke();c.globalAlpha=1}
+  const dark=C.bg!=="#fff",hs=dark?"#888":"#777",ex=Math.min(1,Math.log10(Math.max(S.T,1))/6);
+  for(const p of P){const x=X(p.x),y=Y(p.y),r=R*s,dd=p.gas?S.d:0,ii=p.gas?S.i:0;
+   if(S.T>3000&&p.gas){const g=c.createRadialGradient(x,y,0,x,y,r*(3+5*ii));g.addColorStop(0,ii>.3?"rgba(170,140,255,.5)":"rgba(255,170,60,.4)");g.addColorStop(1,"rgba(0,0,0,0)");c.fillStyle=g;c.beginPath();c.arc(x,y,r*(3+5*ii),0,6.29);c.fill()}
+   const hd=r*(1.15+3.5*dd),wob=dd*r*1.3;
+   for(const sg of[-1,1]){const an=p.a+sg*.9,hx=x+Math.cos(an)*hd+Math.sin(this.t*7+p.ph*sg)*wob,hy=y+Math.sin(an)*hd+Math.cos(this.t*6+p.ph*sg)*wob;
+    c.fillStyle=ii>.3?"#9fd0ff":"#fff";c.strokeStyle=hs;c.lineWidth=1;c.beginPath();c.arc(hx,hy,r*.62,0,6.29);c.fill();c.stroke()}
+   c.fillStyle=ii>.3?"#a45cff":"#e5352b";c.beginPath();c.arc(x,y,r*1.05,0,6.29);c.fill();
+   if(ii>.05){c.fillStyle="#38bdf8";c.globalAlpha=Math.min(1,ii*1.5);for(let k=0;k<2;k++){const an=this.t*(8+k*3)+p.ph+k*3.1,er=r*(1.4+3*ii);c.beginPath();c.arc(x+Math.cos(an)*er,y+Math.sin(an)*er,r*.22,0,6.29);c.fill()}c.globalAlpha=1}
+   if(O.vec){c.strokeStyle=C.fg;c.lineWidth=1.2;c.beginPath();c.moveTo(x,y);c.lineTo(x+p.vx*s*.12,y+p.vy*s*.12);c.stroke()}}
+  if(O.trail&&this.trail.length>1){c.strokeStyle="#eab308";c.lineWidth=2;c.beginPath();this.trail.forEach(([a,b],i)=>i?c.lineTo(X(a),Y(b)):c.moveTo(X(a),Y(b)));c.stroke();
+   c.strokeStyle="#eab308";c.beginPath();c.arc(X(this.tr.x),Y(this.tr.y),R*s*1.9,0,6.29);c.stroke()}}
+}
+
+/* ---------- グラフ ---------- */
+class Graph{
+ constructor(cv){this.cv=cv;this.log=false;this.reset(0,"hold")}
+ reset(T,m){this.pts=[[0,T,m]];this.el=0;this.iv=.1;this.acc=0}
+ rec(dt,T,m){this.el+=dt;this.acc+=dt;if(this.acc>=this.iv){this.acc=0;this.pts.push([this.el,T,m]);if(this.pts.length>1000){this.pts=this.pts.filter((_,i)=>i%2===0);this.iv*=2}}}
+ render(cur){const[W,H,d]=fit(this.cv),c=this.cv.getContext("2d");c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,W,H);
+  const L=52,B=24,Rr=10,Tp=10,pw=W-L-Rr,ph=H-Tp-B,pts=this.pts.concat([[this.el,cur.T,cur.m]]);
+  let mx=1,mn=0;pts.forEach(p=>{mx=Math.max(mx,p[1])});
+  const f=T=>this.log?Math.log10(Math.max(T,.1)):T;let y0,y1;
+  if(this.log){y0=-1;y1=Math.ceil(Math.log10(mx)+.2)}else{y0=0;y1=mx*1.08}
+  const tx=t=>L+pw*(t/Math.max(this.el,1)),ty=T=>Tp+ph*(1-(f(T)-y0)/(y1-y0));
+  c.font="11px sans-serif";c.fillStyle=C.mut;c.strokeStyle=C.line;c.lineWidth=1;c.textAlign="right";
+  const ticks=[];if(this.log){for(let k=-1;k<=y1;k++)ticks.push(Math.pow(10,k))}else{const st=Math.pow(10,Math.floor(Math.log10(y1/4)));const u=[1,2,5,10].find(m=>y1/(st*m)<=5)*st;for(let v=0;v<=y1;v+=u)ticks.push(v)}
+  ticks.forEach(v=>{const y=ty(v);c.beginPath();c.moveTo(L,y);c.lineTo(W-Rr,y);c.stroke();c.fillText(v>=1e5?v.toExponential(0):String(+v.toPrecision(3)),L-6,y+4)});
+  c.textAlign="left";c.setLineDash([2,4]);[[TM,"融点"],[TB,"沸点"]].forEach(([v,n])=>{if(f(v)>=y0&&f(v)<=y1){const y=ty(v);c.strokeStyle=C.mut;c.beginPath();c.moveTo(L,y);c.lineTo(W-Rr,y);c.stroke();c.fillText(n,L+4,y-3)}});c.setLineDash([]);
+  c.textAlign="center";for(let k=0;k<=4;k++){c.fillText((this.el*k/4).toFixed(this.el<10?1:0)+"秒",L+pw*k/4,H-6)}
+  c.strokeStyle=C.fg;c.lineWidth=2;
+  for(let i=1;i<pts.length;i++){const m=pts[i][2];c.setLineDash(m==="cool"?[7,4]:m==="hold"?[2,3]:[]);c.beginPath();c.moveTo(tx(pts[i-1][0]),ty(pts[i-1][1]));c.lineTo(tx(pts[i][0]),ty(pts[i][1]));c.stroke()}
+  c.setLineDash([]);const lp=pts[pts.length-1];c.fillStyle=C.fg;c.beginPath();c.arc(tx(lp[0]),ty(lp[1]),4,0,6.29);c.fill()}
+}
+
+/* ---------- アプリ ---------- */
+const $=id=>document.getElementById(id);
+const main=new Chamber($("cv-main")),graph=new Graph($("cv-graph"));
+const A={tab:"c",mode:"hold",pw:1},BASE=80;
+const fmt=T=>T===0?"0.00":T>=1e5?T.toExponential(3):T.toFixed(T<10?3:2);
+const fmtC=T=>{const v=T-273.15;return v>=1e5?v.toExponential(3):v.toFixed(2)};
+const kmap=s=>s<=0?0:Math.pow(10,-1+9*s/1000);
+const kinv=T=>T<=.1?(T<=0?0:1):Math.min(1000,Math.round((Math.log10(T)+1)/9*1000));
+const SPN=T=>(37.2*Math.sqrt(T));
+const pct=x=>Math.round(x*100)+"%";
+
+function setMode(m){A.mode=m;["heat","cool","hold"].forEach(k=>$("m-"+k).classList.toggle("on",k===m))}
+function ui(){const S=main.S,pm=PH[S.ph];
+  $("tk").innerHTML=fmt(S.T)+"<small>K</small>";$("tc").textContent=fmtC(S.T)+" ℃";
+  $("ph").textContent=pm[0];$("tag-main").textContent=pm[0].replace(/\(.*\)/,"");
+  $("m-t").textContent=graph.el.toFixed(1)+" 秒";
+  $("m-v").textContent=(S.V>=1e4?S.V.toExponential(2):S.V.toFixed(S.V<10?2:1));
+  $("m-s").textContent=(v=>v>=1e4?v.toExponential(2):Math.round(v))(SPN(S.T))+" m/s";
+  $("m-h").textContent=(S.H>=1e5?S.H.toExponential(3):S.H.toFixed(1))+" J/g";
+  const gm=S.ga*(1-S.d),at=S.ga*(S.d*(1-S.i)),io=S.ga*S.i*S.d;
+  [S.so,S.li,gm,at,io].forEach((v,i)=>{$("c"+i).style.width=v*100+"%";$("p"+i).textContent=pct(v)});
+  $("exp").innerHTML="<p>"+pm[0]+"の粒子モデル</p><p>"+pm[1]+"</p>";
+  const sl=$("sl");if(document.activeElement!==sl)sl.value=kinv(S.T);
+  $("pw-lbl").textContent=(BASE*A.pw).toLocaleString()+" J/g/秒";}
+function jump(T){setMode("hold");main.setH(tempToH(T));main.snap();graph.rec(.001,T,"hold");ui()}
+function flash(t){$("msg").textContent=t;clearTimeout(flash.t);flash.t=setTimeout(()=>$("msg").textContent="",3500)}
+
+PRE.forEach(([n,T,l])=>{const b=document.createElement("button");b.innerHTML=n+"<span>"+l+"</span>";b.onclick=()=>{jump(T);graph.pts.push([graph.el,T,"hold"])};$("pre").appendChild(b)});
+$("sl").oninput=e=>{const T=kmap(+e.target.value);graph.pts.push([graph.el,T,"hold"]);jump(T)};
+$("tgo").onclick=()=>{let v=parseFloat($("tin").value.replace(",","."));if(!isFinite(v)){flash("数値を入力してください。");return}
+  let K=$("tun").value==="C"?v+273.15:v;if(K<0){K=0;flash("絶対零度(0 K = -273.15 ℃)より低い温度は存在しません。0 Kにしました。")}jump(K)};
+$("tin").onkeydown=e=>{if(e.key==="Enter")$("tgo").click()};
+["heat","cool","hold"].forEach(k=>$("m-"+k).onclick=()=>setMode(k));
+document.querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>{A.pw=+b.dataset.pw;document.querySelectorAll("[data-pw]").forEach(x=>x.classList.toggle("on",x===b))});
+document.querySelectorAll("[data-ts]").forEach(b=>b.onclick=()=>{O.ts=+b.dataset.ts;document.querySelectorAll("[data-ts]").forEach(x=>x.classList.toggle("on",x===b))});
+[["o-vec","vec"],["o-trail","trail"],["o-bond","bond"]].forEach(([id,k])=>$(id).onclick=()=>{O[k]=!O[k];$(id).classList.toggle("on",O[k])});
+$("g-log").onclick=()=>{graph.log=!graph.log;$("g-log").classList.toggle("on",graph.log)};
+$("g-reset").onclick=()=>graph.reset(main.S.T,A.mode);
+$("reset").onclick=()=>{setMode("hold");main.setH(0);main.snap();graph.reset(0,"hold");cmp.forEach((c,i)=>setCmp(i,CD[i]));ui()};
+
+/* 三態比較 */
+const CD=[200,330,700],CN=["固体側","液体側","気体側"],cmp=[];
+CD.forEach((T,i)=>{const w=document.createElement("section");w.className="sec";
+  w.innerHTML=`<h2>${CN[i]} <small class="num" id="ct${i}"></small></h2><div class="cv"><canvas id="cc${i}" style="aspect-ratio:1/1.02"></canvas><div class="tag" id="cg${i}"></div></div><input type="range" id="cs${i}" min="0" max="1000" aria-label="温度"><div class="exp" id="ce${i}" style="font-size:.84rem;color:var(--mut)"></div>`;
+  $("three").appendChild(w);cmp.push(new Chamber($("cc"+i),48));
+  $("cs"+i).oninput=e=>setCmp(i,kmap(+e.target.value),true)});
+function setCmp(i,T,keep){const c=cmp[i];c.setH(tempToH(T));c.snap();const S=c.S;
+  $("ct"+i).textContent=fmt(T)+" K / "+fmtC(T)+" ℃";$("cg"+i).textContent=PH[S.ph][0];$("ce"+i).textContent=PH[S.ph][1];if(!keep)$("cs"+i).value=kinv(T)}
+CD.forEach((T,i)=>setCmp(i,T));
+
+$("tab-c").onclick=()=>tab("c");$("tab-p").onclick=()=>tab("p");
+function tab(t){A.tab=t;$("tab-c").classList.toggle("on",t==="c");$("tab-p").classList.toggle("on",t==="p");$("v-c").classList.toggle("on",t==="c");$("v-p").classList.toggle("on",t==="p")}
+
+/* メインループ */
+let last=performance.now();
+function loop(now){const dt=Math.min(.05,(now-last)/1000)*O.ts;last=now;
+  if(A.tab==="c"){
+    if(dt>0){const S=main.S;
+      if(A.mode!=="hold"){const q=BASE*A.pw*dt*(A.mode==="heat"?1:-1);let H=Math.max(0,S.H+q);main.setH(H);if(H===0&&A.mode==="cool"){setMode("hold");flash("絶対零度に到達しました。これ以上は冷却できません。")}}
+      main.step(dt);graph.rec(dt,main.S.T,A.mode);ui()}
+    main.render();graph.render({T:main.S.T,m:A.mode});
+  }else{cmp.forEach(c=>{if(dt>0)c.step(dt);c.render()})}
+  requestAnimationFrame(loop)}
+ui();requestAnimationFrame(t=>{last=t;loop(t)});
+})();
+</script>
+</body>
+</html>
