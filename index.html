@@ -284,8 +284,8 @@ class Chamber{
   const rt=Math.max(.02,top-.1);c.fillRect(X(.5)-.008*s,Y(rt),.016*s,Y(top)-.02*s-Y(rt));
   c.save();c.beginPath();c.rect(X(this.l),Y(top),(this.r-this.l)*s,(this.b-top)*s);c.clip();
   const M=this.M,hs=C.bg==="#fff"?"#777":"#888";
-  if(O.bond){c.strokeStyle=C.mut;c.globalAlpha=.45;c.lineWidth=1;c.beginPath();
-   for(let i=0;i<M.length;i++){const a=M[i].o;if(a.gas)continue;for(let j=i+1;j<M.length;j++){const b=M[j].o;if(b.gas)continue;if(Math.hypot(a.x-b.x,a.y-b.y)<R*2.9){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}}c.stroke();c.globalAlpha=1}
+  if(O.bond){c.strokeStyle=C.fg;c.globalAlpha=.6;c.lineWidth=1.5;c.beginPath();
+   for(let i=0;i<M.length;i++){const a=M[i].o;if(a.gas)continue;for(let j=i+1;j<M.length;j++){const b=M[j].o;if(b.gas)continue;if(Math.hypot(a.x-b.x,a.y-b.y)<(a.sol&&b.sol?R*4.2:R*3.3)){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}}c.stroke();c.globalAlpha=1}
   const dot=(e,fill,rr,stroke)=>{c.fillStyle=fill;c.beginPath();c.arc(X(e.x),Y(e.y),rr,0,6.29);c.fill();if(stroke){c.strokeStyle=stroke;c.lineWidth=1;c.stroke()}};
   for(const m of M){const o=m.o,x=X(o.x),y=Y(o.y);
    if(S.T>3000&&o.gas){const gr=rs*(3+5*S.i),g=c.createRadialGradient(x,y,0,x,y,gr);g.addColorStop(0,S.i>.3?"rgba(170,140,255,.5)":"rgba(255,170,60,.4)");g.addColorStop(1,"rgba(0,0,0,0)");c.fillStyle=g;c.beginPath();c.arc(x,y,gr,0,6.29);c.fill()}
