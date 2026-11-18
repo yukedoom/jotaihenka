@@ -105,7 +105,7 @@ input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
  <div class="grid">
   <div class="col">
    <section class="sec">
-    <h2>ピストン付き容器 <small>圧力 1 atm 一定 / 粒子60個 / 高さは体積の対数表示</small></h2>
+    <h2>ピストン付き容器 <small>圧力 1 atm 一定 / 粒子 <span class="num" id="pn">40</span> 個 / ピストンの高さは体積の対数表示</small></h2>
     <div class="cv"><canvas id="cv-main"></canvas><div class="tag" id="tag-main">氷</div></div>
    </section>
    <section class="sec">
@@ -135,7 +135,7 @@ input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
     <div class="mets">
       <div><i>経過時間</i><b class="num" id="m-t">0.0 秒</b></div>
       <div><i>体積 (4℃の水=1)</i><b class="num" id="m-v">1.09</b></div>
-      <div><i>熱運動の速さ</i><b class="num" id="m-s">0 m/s</b></div>
+      <div><i>熱運動の速さ(rms)</i><b class="num" id="m-s" style="font-size:.8rem;font-weight:600">0 m/s</b></div>
     </div>
     <div class="comp"><div class="s0" id="c0"></div><div class="s1" id="c1"></div><div class="s2" id="c2"></div><div class="s3" id="c3"></div><div class="s4" id="c4"></div></div>
     <div class="lg"><span>固体 <b id="p0">100%</b></span><span>液体 <b id="p1">0%</b></span><span>気体(分子) <b id="p2">0%</b></span><span>原子 <b id="p3">0%</b></span><span>電離 <b id="p4">0%</b></span></div>
@@ -154,22 +154,27 @@ input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
 <script>
 (()=>{"use strict";
 /* ---------- 熱力学: 比エンタルピー H(T) [J/g] とその逆変換 ---------- */
-const TM=273.15,TB=373.15,LF=334,LV=2260,LD=50900,LI=218500,TD=3500,WD=.35,TI=15000,WI=.3;
-const sig=(T,T0,w)=>T<=0?0:1/(1+Math.exp(-(Math.log(T/T0))/w));
-const aD=T=>sig(T,TD,WD),aI=T=>sig(T,TI,WI);
-function cp(T,mid){
-  if(mid<TM)return 2.09*T**3/(T**3+1e6);            // 氷: デバイ型(T→0で比熱→0)
-  if(mid<TB)return 4.18;                              // 水
-  if(T<=0)return 2;
-  const d=aD(T),i=aI(T);
-  return 2+1.5*d+6*i+LD*d*(1-d)/(WD*T)+LI*i*(1-i)/(WI*T); // 水蒸気+解離+電離
-}
+const TM=273.15,TB=373.15,LF=334,LV=2260,LD=50900,LI=218500;
+/* 熱解離 H2O -> 2H + O : 質量作用の法則 Kp = A T^3 exp(-D/RT) [atm^2], D = 917 kJ/mol */
+function aD(T){if(T<1500)return 0;
+  const Kp=7.8e-4*T**3*Math.exp(-110300/T);let lo=0,hi=1-1e-12;
+  for(let k=0;k<60;k++){const a=(lo+hi)/2,f=4*a**3/((1-a)*(1+2*a)**2);f<Kp?lo=a:hi=a}return lo}
+/* 電離 (サハの式, 1 atm, 13.6 eV): x^2/(1-x^2) = Kp */
+function aI(T){if(T<3000)return 0;
+  const K=Math.pow(10,2.5*Math.log10(T)-5040*13.6/T-6.49);return Math.sqrt(K/(1+K))}
+const cpb=(T,mid)=>{
+  if(mid<TM)return 2.3*T**3/(T**3+2.7e6);
+  if(mid<TB)return 4.18+.04*Math.exp(-(T-TM)/30)+.04*Math.exp((T-TB)/20);
+  const d=aD(T),x=aI(T);return(1-d)*Math.min(1.85+4.5e-4*T,2.7)+d*3.46+2.1*d*x};
+const ex=T=>{const d=aD(T);return d?d*(LD+LI*aI(T)):0};
 const Th=[0],Hh=[0];
 (()=>{const g=[0];for(let i=0;i<=3000;i++)g.push(1e-3*Math.pow(1e13,i/3000));g.push(TM,TB);g.sort((a,b)=>a-b);
- for(let k=1;k<g.length;k++){const a=g[k-1],b=g[k],m=(a+b)/2;
-  let H=Hh[Hh.length-1]+.5*(cp(a,m)+cp(b,m))*(b-a);Th.push(b);Hh.push(H);
-  if(b===TM){Th.push(b);Hh.push(H+LF)}if(b===TB){Th.push(b);Hh.push(H+LV)}}})();
-const NT=Th.length-1,CPE=cp(Th[NT],Th[NT]);
+ let Hs=0,off=0;
+ for(let k=1;k<g.length;k++){const a=g[k-1],b=g[k],m=(a+b)/2;Hs+=.5*(cpb(a,m)+cpb(b,m))*(b-a);
+  Th.push(b);Hh.push(Hs+off+ex(b));
+  if(b===TM){off+=LF;Th.push(b);Hh.push(Hs+off+ex(b))}
+  if(b===TB){off+=LV;Th.push(b);Hh.push(Hs+off+ex(b))}}})();
+const NT=Th.length-1,CPE=3.46+2.1;
 function tempToH(T){
   if(T<=0)return 0;
   if(T>=Th[NT])return Hh[NT]+CPE*(T-Th[NT]);
@@ -184,14 +189,13 @@ function stateOf(H){
    if(Th[lo]===Th[hi]){T=Th[lo];const f=(H-Hh[lo])/(Hh[hi]-Hh[lo]);if(T===TM){so=1-f;li=f}else{li=1-f;ga=f}}
    else T=Th[lo]+(Th[hi]-Th[lo])*(H-Hh[lo])/(Hh[hi]-Hh[lo]);}
   if(!(so||li||ga)){if(T<TM)so=1;else if(T<TB)li=1;else ga=1}
-  if(T===TM&&!so&&!li){so=1}
-  const d=ga?aD(T):0,i=ga?aI(T):0,n=1+2*d+10*i;
+  const d=ga>.995?aD(T):0,i=d?aI(T):0,n=1+2*d+3*d*i;
   const Vs=1.0905-1e-5*(TM-Math.min(T,TM)),Vl=1+4.2e-4*Math.max(0,T-277.15),Vg=4.555*T*n;
   const V=so*Vs+li*Vl+ga*Vg;
   let ph;
   if(H===0)ph="zero";else if(ga>.995&&d<.05)ph="steam";else if(ga>.995&&d<.95)ph="diss";else if(ga>.995&&i<.05)ph="atom";else if(ga>.995&&i<.95)ph="ion";else if(ga>.995)ph="plasma";
   else if(ga>.005)ph="boil";else if(li>.995)ph="water";else if(so>.995)ph="ice";else ph="melt";
-  return{H,T,so,li,ga,d,i,V,ph};
+  return{H,T,so,li,ga,d,i,V,ph,n};
 }
 const speedOf=T=>{const raw=.2*Math.sqrt(T/300),vm=1.6;return vm*Math.tanh(raw/vm)+.004};
 const pistonOf=V=>Math.min(.9,.3+.6*Math.max(0,Math.log10(V/.9))/9);
@@ -204,11 +208,11 @@ melt:["融解中(273.15 K)","加えた熱は温度上昇でなく、結晶を崩
 water:["液体(水)","分子は互いに引き合ってまとまりを保ちつつ、位置を入れ替えながら動く。形は容器に従い、体積はほぼ変わらない。"],
 boil:["沸騰中(373.15 K)","潜熱(2260 J/g)を吸収して分子が液体から飛び出す。温度は一定のまま体積が約1700倍に膨らみ、ピストンが押し上げられる。"],
 steam:["気体(水蒸気)","分子は分子間力を振り切って自由に飛び回る。体積は絶対温度に比例して増える。"],
-diss:["熱解離(約2000〜6000 K)","熱運動が分子内の結合(O-H)を上回り、H2OがHやOなどに分かれていく。粒子の数が増えるため体積も増える。吸熱で温度の上がり方が鈍る。"],
+diss:["熱解離(約4000〜7000 K)","熱運動が分子内の結合(O-H)を上回り、H2OがHやOなどに分かれていく。粒子の数が実際に増え、体積も増える。解離の熱(917 kJ/mol)を吸うため温度の上がり方が鈍る。"],
 atom:["原子ガス","分子はほぼ原子に分解された状態。まだ電子は原子核に束縛されている。"],
-ion:["電離中(約10^4 K以上)","衝突の勢いで電子が原子から引きはがされ始める。電子と陽イオンが混ざり、電気を通すようになる。"],
+ion:["電離中(約1万〜2万 K)","衝突の勢いで電子が原子から引きはがされ始める。電子と陽イオンが混ざり、電気を通すようになる。"],
 plasma:["プラズマ","原子はほぼ電離し、電子とイオンが自由に飛び回る。クーロン力で引き合い反発し合い、強く発光する。宇宙の物質の大半はこの状態。"]};
-const PRE=[["絶対零度",0,"0 K"],["氷",253.15,"-20 ℃"],["融点",273.15,"0 ℃"],["常温の水",298.15,"25 ℃"],["沸点",373.15,"100 ℃"],["水蒸気",500,"227 ℃"],["熱解離",4000,"4000 K"],["プラズマ",50000,"5万 K"]];
+const PRE=[["絶対零度",0,"0 K"],["氷",253.15,"-20 ℃"],["融点",273.15,"0 ℃"],["常温の水",298.15,"25 ℃"],["沸点",373.15,"100 ℃"],["水蒸気",500,"227 ℃"],["熱解離",5500,"5500 K"],["プラズマ",50000,"5万 K"]];
 
 /* ---------- 粒子容器 ---------- */
 const O={vec:false,trail:true,bond:true,ts:1};
@@ -217,64 +221,84 @@ const css=()=>{const s=getComputedStyle(document.documentElement);return{fg:s.ge
 let C=css();matchMedia("(prefers-color-scheme:dark)").addEventListener("change",()=>{C=css()});
 function fit(cv){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.round(r.width*d),h=Math.round(r.height*d);if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}return[r.width,r.height,d]}
 
+const SF={O:1,H:2,E:4};
 class Chamber{
- constructor(cv,n=60){this.cv=cv;this.n=n;this.R=.016;this.l=.12;this.r=.88;this.b=.93;this.t=0;this.pv=0;this.trail=[];this.setH(0);this.init();this.snap()}
+ constructor(cv,n=40){this.cv=cv;this.n=n;this.R=.016;this.l=.12;this.r=.88;this.b=.93;this.t=0;this.pv=0;this.trail=[];this.setH(0);this.init();this.snap()}
  setH(H){this.S=stateOf(H)}
- init(){const n=this.n,R=this.R,cols=10,sx=.056,sy=.047,cx=.5,P=[];
-  for(let k=0;k<n;k++){const row=Math.floor(k/cols),col=k%cols,off=row%2?sx/2:0;
-   P.push({ax:cx-(cols-1)*sx/2+col*sx+off-sx/4,ay:this.b-R*1.6-row*sy,x:0,y:0,vx:0,vy:0,a:Math.random()*6.28,w:0,ph:Math.random()*6.28,q:k%2?1:-1})}
-  let mx=0;P.forEach(p=>{p.d=Math.hypot((p.ax-cx)*.85,p.ay-this.b+.12);mx=Math.max(mx,p.d)});
-  P.forEach(p=>{p.s=Math.min(.999,p.d/mx*.9+Math.random()*.09+.005)});
-  [...P].sort((a,b)=>(a.ay+Math.random()*.06)-(b.ay+Math.random()*.06)).forEach((p,i)=>{p.g=(i+.5)/n});
-  this.P=P;this.tr=P.reduce((a,p)=>Math.hypot(p.ax-.45,p.ay-.8)<Math.hypot(a.ax-.45,a.ay-.8)?p:a,P[0]);
+ mk(kind,mol){return{kind,mol,act:false,ion:false,x:0,y:0,vx:0,vy:0,gas:kind!=="O",sol:false}}
+ rad(e){return e.kind==="O"?this.R:e.kind==="H"?this.R*.62:this.R*.22}
+ init(){const n=this.n,R=this.R,cols=10,sx=.06,sy=.05,E=[],M=[];
+  for(let k=0;k<n;k++){const row=Math.floor(k/cols),col=k%cols,off=row%2?sx/2:0,o=this.mk("O",k);
+   Object.assign(o,{act:true,ax:.5-(cols-1)*sx/2+col*sx+off-sx/4,ay:this.b-R*1.7-row*sy,a:Math.random()*6.28,w:0,ph:Math.random()*6.28,u:Math.random(),vo:Math.random()});
+   const h=[this.mk("H",k),this.mk("H",k)],e=[this.mk("E",k),this.mk("E",k),this.mk("E",k)];
+   h.forEach((q,i)=>{q.vi=Math.random();q.ph=i});
+   M.push({o,h,e,dis:false});E.push(o,...h,...e)}
+  let mx=0;M.forEach(m=>{const o=m.o;o.d=Math.hypot((o.ax-.5)*.85,o.ay-this.b+.1);mx=Math.max(mx,o.d)});
+  M.forEach(m=>{m.o.s=Math.min(.999,m.o.d/mx*.9+Math.random()*.09+.005)});
+  [...M].sort((a,b)=>(a.o.ay+Math.random()*.05)-(b.o.ay+Math.random()*.05)).forEach((m,i)=>{m.o.g=(i+.5)/n});
+  this.E=E;this.M=M;this.tr=M.reduce((a,m)=>Math.hypot(m.o.ax-.45,m.o.ay-.8)<Math.hypot(a.o.ax-.45,a.o.ay-.8)?m:a,M[0]).o;
   this.pistonH=pistonOf(this.S.V)}
- snap(){const S=this.S;this.pistonH=pistonOf(S.V);this.pv=0;this.trail=[];const top=this.b-this.pistonH,vt=speedOf(S.T);
-  for(const p of this.P){
-   if(p.s<S.so){p.x=p.ax;p.y=p.ay}
-   else if(p.g<S.ga){p.x=this.l+this.R+Math.random()*(this.r-this.l-2*this.R);p.y=top+this.R+Math.random()*(this.b-top-2*this.R)}
-   else{p.x=this.l+this.R+Math.random()*(this.r-this.l-2*this.R);p.y=this.b-this.R-Math.random()*.2}
-   p.vx=gauss()*vt;p.vy=gauss()*vt}}
+ /* 分子の解離・原子の電離に合わせて H と電子の実体を出し入れする */
+ sync(m){const S=this.S,o=m.o,vt=speedOf(S.T),dis=S.ga>.995&&S.d>o.u;m.dis=dis;
+  const turn=(q,want,a)=>{if(want&&!q.act){q.act=true;q.x=a.x+(Math.random()-.5)*.03;q.y=a.y+(Math.random()-.5)*.03;
+    const f=vt*SF[q.kind];q.vx=a.vx+gauss()*f;q.vy=a.vy+gauss()*f}else if(!want&&q.act)q.act=false};
+  m.h.forEach(q=>{turn(q,dis,o);q.ion=dis&&S.i>q.vi});o.ion=dis&&S.i>o.vo;
+  [o,m.h[0],m.h[1]].forEach((a,k)=>turn(m.e[k],a.act&&a.ion,a))}
+ snap(){const S=this.S,R=this.R;this.pistonH=pistonOf(S.V);this.pv=0;this.trail=[];const top=this.b-this.pistonH,vt=speedOf(S.T);
+  const rx=()=>this.l+R+Math.random()*(this.r-this.l-2*R);
+  for(const m of this.M){const o=m.o;
+   if(o.s<S.so){o.x=o.ax;o.y=o.ay}
+   else if(o.g<S.ga){o.x=rx();o.y=top+R+Math.random()*(this.b-top-2*R)}
+   else{o.x=rx();o.y=this.b-R-Math.random()*.2}
+   o.vx=gauss()*vt;o.vy=gauss()*vt;o.sol=o.s<S.so;o.gas=o.g<S.ga;m.h.concat(m.e).forEach(q=>q.act=false);this.sync(m)}}
  step(dt){const S=this.S,R=this.R,sub=6,h=dt/sub;this.t+=dt;
-  const tg=pistonOf(S.V);this.pv+=((tg-this.pistonH)*18-this.pv*7.2)*dt;this.pistonH=Math.max(.26,Math.min(.9,this.pistonH+this.pv*dt));
-  const top=this.b-this.pistonH,vt=speedOf(S.T),P=this.P,K=900;
-  for(const p of P){p.sol=p.s<S.so;p.gas=p.g<S.ga}
+  this.pv+=((pistonOf(S.V)-this.pistonH)*18-this.pv*7.2)*dt;this.pistonH=Math.max(.26,Math.min(.9,this.pistonH+this.pv*dt));
+  const top=this.b-this.pistonH,vt=speedOf(S.T),K=900;
+  for(const m of this.M){m.o.sol=m.o.s<S.so;m.o.gas=m.o.g<S.ga;this.sync(m)}
+  const A=this.E.filter(e=>e.act);
   for(let st=0;st<sub;st++){
-   for(const p of P){let ax=0,ay=0,gm;
-    if(p.sol){ax=-(p.x-p.ax)*K;ay=-(p.y-p.ay)*K;gm=9}
-    else if(p.gas)gm=1.2;else{ay=2.2;gm=2.5}
-    const nz=vt*Math.sqrt(2*gm*h);
+   for(const p of A){let ax=0,ay=0,gm=1.2;
+    if(p.sol){ax=-(p.x-p.ax)*K;ay=-(p.y-p.ay)*K;gm=9}else if(!p.gas){ay=2.2;gm=2.5}
+    const nz=vt*SF[p.kind]*Math.sqrt(2*gm*h);
     p.vx+=(ax-gm*p.vx)*h+nz*gauss();p.vy+=(ay-gm*p.vy)*h+nz*gauss();
-    p.w+=(-p.w*3)*h+(Math.random()-.5)*(p.sol?2:20)*vt*h*10;}
-   for(let i=0;i<P.length;i++){const a=P[i];for(let j=i+1;j<P.length;j++){const b=P[j];
-    const dx=b.x-a.x,dy=b.y-a.y,q=dx*dx+dy*dy,mx=R*3.6;if(q>=mx*mx||q<1e-9){if(q>=mx*mx&&S.i>.05&&a.gas&&b.gas&&q<.09){const d=Math.sqrt(q),f=.02*S.i*a.q*b.q/(q+.004)*h;a.vx-=dx/d*f;a.vy-=dy/d*f;b.vx+=dx/d*f;b.vy+=dy/d*f}continue}
-    const d=Math.sqrt(q),nx=dx/d,ny=dy/d,md=R*(a.gas||b.gas?1.9:2.02);
-    if(d<md){const ps=(md-d)*.5;a.x-=nx*ps;a.y-=ny*ps;b.x+=nx*ps;b.y+=ny*ps;const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(vn<0){const im=-vn;a.vx-=im*nx;a.vy-=im*ny;b.vx+=im*nx;b.vy+=im*ny}}
-    else if(!a.gas&&!b.gas&&!a.sol&&!b.sol){const f=6*(1-(d-md)/(mx-md))*h;a.vx+=nx*f;a.vy+=ny*f;b.vx-=nx*f;b.vy-=ny*f}}}
-   for(const p of P){p.x+=p.vx*h;p.y+=p.vy*h;p.a+=p.w*h;
-    if(p.x-R<this.l){p.x=this.l+R;p.vx=Math.abs(p.vx)}if(p.x+R>this.r){p.x=this.r-R;p.vx=-Math.abs(p.vx)}
-    if(p.y+R>this.b){p.y=this.b-R;p.vy=-Math.abs(p.vy)}if(p.y-R<top){p.y=top+R;p.vy=Math.abs(p.vy)+Math.max(0,this.pv)*.5}}}
+    if(p.kind==="O")p.w+=-p.w*3*h+(Math.random()-.5)*(p.sol?2:20)*vt*h*10}
+   for(let i=0;i<A.length;i++){const a=A[i];for(let j=i+1;j<A.length;j++){const b=A[j];
+    const dx=b.x-a.x,dy=b.y-a.y,q=dx*dx+dy*dy;if(q>.09||q<1e-9)continue;
+    const d=Math.sqrt(q),nx=dx/d,ny=dy/d,qa=a.kind==="E"?-1:a.ion?1:0,qb=b.kind==="E"?-1:b.ion?1:0;
+    if(qa&&qb){const f=.15*qa*qb/(q+.004)*h;a.vx-=nx*f;a.vy-=ny*f;b.vx+=nx*f;b.vy+=ny*f}
+    if(a.kind==="E"||b.kind==="E")continue;
+    const md=(this.rad(a)+this.rad(b))*(a.gas&&b.gas?.95:1.01),mx=R*3.6;
+    if(d<md){const ps=(md-d)*.5;a.x-=nx*ps;a.y-=ny*ps;b.x+=nx*ps;b.y+=ny*ps;const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(vn<0){a.vx+=vn*nx;a.vy+=vn*ny;b.vx-=vn*nx;b.vy-=vn*ny}}
+    else if(d<mx&&!a.gas&&!b.gas&&!a.sol&&!b.sol){const f=6*(1-(d-md)/(mx-md))*h;a.vx+=nx*f;a.vy+=ny*f;b.vx-=nx*f;b.vy-=ny*f}}}
+   for(const p of A){const r=this.rad(p);p.x+=p.vx*h;p.y+=p.vy*h;if(p.kind==="O")p.a+=p.w*h;
+    if(p.x-r<this.l){p.x=this.l+r;p.vx=Math.abs(p.vx)}if(p.x+r>this.r){p.x=this.r-r;p.vx=-Math.abs(p.vx)}
+    if(p.y+r>this.b){p.y=this.b-r;p.vy=-Math.abs(p.vy)}if(p.y-r<top){p.y=top+r;p.vy=Math.abs(p.vy)+Math.max(0,this.pv)*.5}}}
   this.trail.push([this.tr.x,this.tr.y]);if(this.trail.length>100)this.trail.shift()}
  render(){const[W,H,d]=fit(this.cv),c=this.cv.getContext("2d"),S=this.S,R=this.R,s=Math.min(W,H),ox=(W-s)/2,oy=(H-s)/2;
   c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,W,H);
-  const X=x=>ox+x*s,Y=y=>oy+y*s,top=this.b-this.pistonH;
+  const X=x=>ox+x*s,Y=y=>oy+y*s,top=this.b-this.pistonH,rs=R*s;
   if(S.T>2500){const e=Math.min(1,(Math.log10(S.T)-3.4)/1.6),m=S.i,rr=Math.round(255-80*m),gg=Math.round(150+40*m),bb=Math.round(60+195*m);
    c.fillStyle=`rgba(${rr},${gg},${bb},${.08+.28*e})`;c.fillRect(X(this.l),Y(top),(this.r-this.l)*s,(this.b-top)*s)}
   c.strokeStyle=C.fg;c.lineWidth=1.5;c.beginPath();c.moveTo(X(this.l),Y(.03));c.lineTo(X(this.l),Y(this.b));c.lineTo(X(this.r),Y(this.b));c.lineTo(X(this.r),Y(.03));c.stroke();
-  c.fillStyle=C.fg;c.fillRect(X(this.l)-2,Y(top)-.02*s,(this.r-this.l)*s+4,.02*s);c.fillRect(X(.5)-.01*s,Y(.02),.02*s,Y(top)-.02*s-Y(.02));
-  const P=this.P;
+  c.fillStyle=C.fg;c.fillRect(X(this.l)-2,Y(top)-.02*s,(this.r-this.l)*s+4,.02*s);
+  const rt=Math.max(.02,top-.1);c.fillRect(X(.5)-.008*s,Y(rt),.016*s,Y(top)-.02*s-Y(rt));
+  c.save();c.beginPath();c.rect(X(this.l),Y(top),(this.r-this.l)*s,(this.b-top)*s);c.clip();
+  const M=this.M,hs=C.bg==="#fff"?"#777":"#888";
   if(O.bond){c.strokeStyle=C.mut;c.globalAlpha=.45;c.lineWidth=1;c.beginPath();
-   for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j];if(a.gas||b.gas)continue;if(Math.hypot(a.x-b.x,a.y-b.y)<R*2.9){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}c.stroke();c.globalAlpha=1}
-  const dark=C.bg!=="#fff",hs=dark?"#888":"#777",ex=Math.min(1,Math.log10(Math.max(S.T,1))/6);
-  for(const p of P){const x=X(p.x),y=Y(p.y),r=R*s,dd=p.gas?S.d:0,ii=p.gas?S.i:0;
-   if(S.T>3000&&p.gas){const g=c.createRadialGradient(x,y,0,x,y,r*(3+5*ii));g.addColorStop(0,ii>.3?"rgba(170,140,255,.5)":"rgba(255,170,60,.4)");g.addColorStop(1,"rgba(0,0,0,0)");c.fillStyle=g;c.beginPath();c.arc(x,y,r*(3+5*ii),0,6.29);c.fill()}
-   const hd=r*(1.15+3.5*dd),wob=dd*r*1.3;
-   for(const sg of[-1,1]){const an=p.a+sg*.9,hx=x+Math.cos(an)*hd+Math.sin(this.t*7+p.ph*sg)*wob,hy=y+Math.sin(an)*hd+Math.cos(this.t*6+p.ph*sg)*wob;
-    c.fillStyle=ii>.3?"#9fd0ff":"#fff";c.strokeStyle=hs;c.lineWidth=1;c.beginPath();c.arc(hx,hy,r*.62,0,6.29);c.fill();c.stroke()}
-   c.fillStyle=ii>.3?"#a45cff":"#e5352b";c.beginPath();c.arc(x,y,r*1.05,0,6.29);c.fill();
-   if(ii>.05){c.fillStyle="#38bdf8";c.globalAlpha=Math.min(1,ii*1.5);for(let k=0;k<2;k++){const an=this.t*(8+k*3)+p.ph+k*3.1,er=r*(1.4+3*ii);c.beginPath();c.arc(x+Math.cos(an)*er,y+Math.sin(an)*er,r*.22,0,6.29);c.fill()}c.globalAlpha=1}
-   if(O.vec){c.strokeStyle=C.fg;c.lineWidth=1.2;c.beginPath();c.moveTo(x,y);c.lineTo(x+p.vx*s*.12,y+p.vy*s*.12);c.stroke()}}
+   for(let i=0;i<M.length;i++){const a=M[i].o;if(a.gas)continue;for(let j=i+1;j<M.length;j++){const b=M[j].o;if(b.gas)continue;if(Math.hypot(a.x-b.x,a.y-b.y)<R*2.9){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}}c.stroke();c.globalAlpha=1}
+  const dot=(e,fill,rr,stroke)=>{c.fillStyle=fill;c.beginPath();c.arc(X(e.x),Y(e.y),rr,0,6.29);c.fill();if(stroke){c.strokeStyle=stroke;c.lineWidth=1;c.stroke()}};
+  for(const m of M){const o=m.o,x=X(o.x),y=Y(o.y);
+   if(S.T>3000&&o.gas){const gr=rs*(3+5*S.i),g=c.createRadialGradient(x,y,0,x,y,gr);g.addColorStop(0,S.i>.3?"rgba(170,140,255,.5)":"rgba(255,170,60,.4)");g.addColorStop(1,"rgba(0,0,0,0)");c.fillStyle=g;c.beginPath();c.arc(x,y,gr,0,6.29);c.fill()}
+   if(!m.dis){
+    for(const sg of[-1,1]){const an=o.a+sg*.9;c.fillStyle="#fff";c.strokeStyle=hs;c.lineWidth=1;c.beginPath();c.arc(x+Math.cos(an)*rs*1.15,y+Math.sin(an)*rs*1.15,rs*.62,0,6.29);c.fill();c.stroke()}
+    dot(o,"#e5352b",rs*1.05)}
+   else dot(o,o.ion?"#a45cff":"#e5352b",rs*1.05);
+   for(const q of m.h)if(q.act)dot(q,q.ion?"#9fd0ff":"#fff",rs*.62,hs);
+   for(const q of m.e)if(q.act)dot(q,"#38bdf8",rs*.24)}
+  if(O.vec){c.strokeStyle=C.fg;c.lineWidth=1.2;c.beginPath();for(const e of this.E)if(e.act&&e.kind!=="E"){c.moveTo(X(e.x),Y(e.y));c.lineTo(X(e.x+e.vx*.12),Y(e.y+e.vy*.12))}c.stroke()}
   if(O.trail&&this.trail.length>1){c.strokeStyle="#eab308";c.lineWidth=2;c.beginPath();this.trail.forEach(([a,b],i)=>i?c.lineTo(X(a),Y(b)):c.moveTo(X(a),Y(b)));c.stroke();
-   c.strokeStyle="#eab308";c.beginPath();c.arc(X(this.tr.x),Y(this.tr.y),R*s*1.9,0,6.29);c.stroke()}}
+   c.beginPath();c.arc(X(this.tr.x),Y(this.tr.y),rs*1.9,0,6.29);c.stroke()}
+  c.restore()}
 }
 
 /* ---------- グラフ ---------- */
@@ -315,11 +339,13 @@ function ui(){const S=main.S,pm=PH[S.ph];
   $("ph").textContent=pm[0];$("tag-main").textContent=pm[0].replace(/\(.*\)/,"");
   $("m-t").textContent=graph.el.toFixed(1)+" 秒";
   $("m-v").textContent=(S.V>=1e4?S.V.toExponential(2):S.V.toFixed(S.V<10?2:1));
-  $("m-s").textContent=(v=>v>=1e4?v.toExponential(2):Math.round(v))(SPN(S.T))+" m/s";
+  const fv=v=>v>=299792458?"ほぼ光速(要相対論)":v>2.9979e7?(v/299792458).toFixed(2)+" c(要相対論)":v>=1e4?v.toExponential(2)+" m/s":Math.round(v)+" m/s";
+  const sp=[];if(S.so+S.li>.005||S.d<.95)sp.push("H2O "+fv(37.2*Math.sqrt(S.T)));if(S.d>.05)sp.push("H原子 "+fv(37.2*Math.sqrt(S.T*18.015/1.008)));if(S.d*S.i>.05)sp.push("電子 "+fv(37.2*Math.sqrt(S.T*18.015/5.486e-4)));
+  $("m-s").innerHTML=sp.join("<br>");$("pn").textContent=main.E.filter(e=>e.act).length;
   $("m-h").textContent=(S.H>=1e5?S.H.toExponential(3):S.H.toFixed(1))+" J/g";
   const gm=S.ga*(1-S.d),at=S.ga*(S.d*(1-S.i)),io=S.ga*S.i*S.d;
   [S.so,S.li,gm,at,io].forEach((v,i)=>{$("c"+i).style.width=v*100+"%";$("p"+i).textContent=pct(v)});
-  $("exp").innerHTML="<p>"+pm[0]+"の粒子モデル</p><p>"+pm[1]+"</p>";
+  $("exp").innerHTML="<p>"+pm[0]+"の粒子モデル</p><p>"+pm[1]+"</p>"+(S.ga>.995&&S.T>1500?"<p style=\"color:var(--mut);font-size:.8rem\">解離・電離の割合は質量作用の法則とサハの式(1 atm)で計算。表示上、Hと電子は見やすさのため速度を圧縮して動かし、酸素・水素は1価の電離のみ扱う(約10^5 K以上で実際に起こる多価電離は省略)。</p>":"");
   const sl=$("sl");if(document.activeElement!==sl)sl.value=kinv(S.T);
   $("pw-lbl").textContent=(BASE*A.pw).toLocaleString()+" J/g/秒";}
 function jump(T){setMode("hold");main.setH(tempToH(T));main.snap();graph.rec(.001,T,"hold");ui()}
@@ -342,7 +368,7 @@ $("reset").onclick=()=>{setMode("hold");main.setH(0);main.snap();graph.reset(0,"
 const CD=[200,330,700],CN=["固体側","液体側","気体側"],cmp=[];
 CD.forEach((T,i)=>{const w=document.createElement("section");w.className="sec";
   w.innerHTML=`<h2>${CN[i]} <small class="num" id="ct${i}"></small></h2><div class="cv"><canvas id="cc${i}" style="aspect-ratio:1/1.02"></canvas><div class="tag" id="cg${i}"></div></div><input type="range" id="cs${i}" min="0" max="1000" aria-label="温度"><div class="exp" id="ce${i}" style="font-size:.84rem;color:var(--mut)"></div>`;
-  $("three").appendChild(w);cmp.push(new Chamber($("cc"+i),48));
+  $("three").appendChild(w);cmp.push(new Chamber($("cc"+i)));
   $("cs"+i).oninput=e=>setCmp(i,kmap(+e.target.value),true)});
 function setCmp(i,T,keep){const c=cmp[i];c.setH(tempToH(T));c.snap();const S=c.S;
   $("ct"+i).textContent=fmt(T)+" K / "+fmtC(T)+" ℃";$("cg"+i).textContent=PH[S.ph][0];$("ce"+i).textContent=PH[S.ph][1];if(!keep)$("cs"+i).value=kinv(T)}
