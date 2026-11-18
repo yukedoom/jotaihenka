@@ -93,8 +93,8 @@ input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
 <div class="bar">
   <div class="grp"><span>表示</span>
     <button class="chip" id="o-vec">速度の矢印</button>
-    <button class="chip on" id="o-trail">注目粒子の軌跡</button>
-    <button class="chip on" id="o-bond">分子間の結びつき</button>
+    <button class="chip" id="o-trail">注目粒子の軌跡</button>
+    <button class="chip" id="o-bond">分子間の結びつき</button>
   </div>
   <div class="grp"><span>再生</span>
     <div class="seg"><button class="on" data-ts="1">通常</button><button data-ts="0.3">スロー</button><button data-ts="0">停止</button></div>
@@ -217,7 +217,7 @@ plasma:["プラズマ","原子はほぼ電離し、電子とイオンが自由�
 const PRE=[["絶対零度",0,"0 K"],["氷",253.15,"-20 ℃"],["融点",273.15,"0 ℃"],["常温の水",298.15,"25 ℃"],["沸点",373.15,"100 ℃"],["水蒸気",500,"227 ℃"],["熱解離",5500,"5500 K"],["プラズマ",50000,"5万 K"]];
 
 /* ---------- 粒子容器 ---------- */
-const O={vec:false,trail:true,bond:true,ts:1};
+const O={vec:false,trail:false,bond:false,ts:1};
 const gauss=()=>Math.sqrt(-2*Math.log(Math.random()||1e-9))*Math.cos(6.2832*Math.random());
 const css=()=>{const s=getComputedStyle(document.documentElement);return{fg:s.getPropertyValue("--fg").trim(),bg:s.getPropertyValue("--bg").trim(),mut:s.getPropertyValue("--mut").trim(),line:s.getPropertyValue("--line").trim(),soft:s.getPropertyValue("--soft").trim()}};
 let C=css();matchMedia("(prefers-color-scheme:dark)").addEventListener("change",()=>{C=css()});
