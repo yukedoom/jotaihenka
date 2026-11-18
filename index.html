@@ -73,6 +73,7 @@ input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
 .exp p:first-child{font-weight:700;font-size:1rem}
 .three{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
 @media(max-width:900px){.three{grid-template-columns:1fr}}
+.lad{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--fg);margin-top:12px}.lad span{position:relative;text-align:center;padding:5px 2px;font-size:.78rem;font-weight:700;overflow:hidden}.lad span+span{border-left:1px solid var(--line)}.lad i{position:absolute;inset:0;background:var(--fg)}.lad em{position:relative;font-style:normal}
 .ic{width:18px;height:18px;vertical-align:-3px;margin-right:6px}
 </style>
 </head>
@@ -125,11 +126,12 @@ input[type=range]{width:100%;accent-color:var(--fg);margin:6px 0}
    <section class="sec">
     <div class="hero"><div class="big num" id="tk">253.15<small>K</small></div><div class="sub num" id="tc">-20.00 ℃</div></div>
     <div class="phase" id="ph">固体(氷)</div>
+    <div class="lad" id="lad" aria-label="現在の状態"></div>
    </section>
    <section class="sec">
     <h2>温度の時間変化 <small><button class="chip" id="g-log">対数軸</button> <button class="chip" id="g-reset">記録を消す</button></small></h2>
     <div class="cv"><canvas id="cv-graph"></canvas></div>
-    <div class="lg" style="margin-top:6px"><span>実線 = 加熱</span><span>破線 = 冷却</span><span>点線 = 維持</span><span>水平区間 = 潜熱</span></div>
+    <div class="lg" style="margin-top:6px"><span>実線 = 加熱</span><span>破線 = 冷却</span><span>点線 = 維持</span><span>水平区間 = 潜熱</span><span>背景の帯 = 状態</span></div>
    </section>
    <section class="sec">
     <div class="mets">
@@ -222,6 +224,7 @@ let C=css();matchMedia("(prefers-color-scheme:dark)").addEventListener("change",
 function fit(cv){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.round(r.width*d),h=Math.round(r.height*d);if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}return[r.width,r.height,d]}
 
 const SF={O:1,H:2,E:4};
+const glowRGB=(T,m)=>{const t=Math.max(0,Math.min(1,(Math.log10(Math.max(T,1))-3.4)/.7)),a=[255,140,50],b=[255,225,190],v=[150,130,255];return[0,1,2].map(i=>{const x=a[i]+(b[i]-a[i])*t;return Math.round(x+(v[i]-x)*m)}).join(",")};
 class Chamber{
  constructor(cv,n=40){this.cv=cv;this.n=n;this.R=.016;this.l=.12;this.r=.88;this.b=.93;this.t=0;this.pv=0;this.trail=[];this.setH(0);this.init();this.snap()}
  setH(H){this.S=stateOf(H)}
@@ -236,15 +239,16 @@ class Chamber{
   let mx=0;M.forEach(m=>{const o=m.o;o.d=Math.hypot((o.ax-.5)*.85,o.ay-this.b+.1);mx=Math.max(mx,o.d)});
   M.forEach(m=>{m.o.s=Math.min(.999,m.o.d/mx*.9+Math.random()*.09+.005)});
   [...M].sort((a,b)=>(a.o.ay+Math.random()*.05)-(b.o.ay+Math.random()*.05)).forEach((m,i)=>{m.o.g=(i+.5)/n});
-  this.E=E;this.M=M;this.tr=M.reduce((a,m)=>Math.hypot(m.o.ax-.45,m.o.ay-.8)<Math.hypot(a.o.ax-.45,a.o.ay-.8)?m:a,M[0]).o;
+  this.E=E;this.M=M;this.Alat=cols*sx*(Math.ceil(n/cols)*sy);this.tr=M.reduce((a,m)=>Math.hypot(m.o.ax-.45,m.o.ay-.8)<Math.hypot(a.o.ax-.45,a.o.ay-.8)?m:a,M[0]).o;
   this.pistonH=pistonOf(this.S.V)}
  /* 分子の解離・原子の電離に合わせて H と電子の実体を出し入れする */
+ lvl(){const S=this.S;return this.b-this.Alat/(this.r-this.l)*(S.so*1.0905+S.li*(1+4.2e-4*Math.max(0,S.T-277.15)))/1.0905}
  sync(m){const S=this.S,o=m.o,vt=speedOf(S.T),dis=S.ga>.995&&S.d>o.u;m.dis=dis;
   const turn=(q,want,a)=>{if(want&&!q.act){q.act=true;q.x=a.x+(Math.random()-.5)*.03;q.y=a.y+(Math.random()-.5)*.03;
     const f=vt*SF[q.kind];q.vx=a.vx+gauss()*f;q.vy=a.vy+gauss()*f}else if(!want&&q.act)q.act=false};
   m.h.forEach(q=>{turn(q,dis,o);q.ion=dis&&S.i>q.vi});o.ion=dis&&S.i>o.vo;
   [o,m.h[0],m.h[1]].forEach((a,k)=>turn(m.e[k],a.act&&a.ion,a))}
- snap(){const S=this.S,R=this.R;this.pistonH=pistonOf(S.V);this.pv=0;this.trail=[];const top=this.b-this.pistonH,vt=speedOf(S.T);
+ snap(){const S=this.S,R=this.R;this.pistonH=pistonOf(S.V);this.pv=0;this.sy=null;this.trail=[];const top=this.b-this.pistonH,vt=speedOf(S.T);
   const rx=()=>this.l+R+Math.random()*(this.r-this.l-2*R);
   for(const m of this.M){const o=m.o;
    if(o.s<S.so){o.x=o.ax;o.y=o.ay}
@@ -253,12 +257,12 @@ class Chamber{
    o.vx=gauss()*vt;o.vy=gauss()*vt;o.sol=o.s<S.so;o.gas=o.g<S.ga;m.h.concat(m.e).forEach(q=>q.act=false);this.sync(m)}}
  step(dt){const S=this.S,R=this.R,sub=6,h=dt/sub;this.t+=dt;
   this.pv+=((pistonOf(S.V)-this.pistonH)*18-this.pv*7.2)*dt;this.pistonH=Math.max(.26,Math.min(.9,this.pistonH+this.pv*dt));
-  const top=this.b-this.pistonH,vt=speedOf(S.T),K=900;
+  const top=this.b-this.pistonH,vt=speedOf(S.T),K=900,yL=this.lvl();
   for(const m of this.M){m.o.sol=m.o.s<S.so;m.o.gas=m.o.g<S.ga;this.sync(m)}
   const A=this.E.filter(e=>e.act);
   for(let st=0;st<sub;st++){
    for(const p of A){let ax=0,ay=0,gm=1.2;
-    if(p.sol){ax=-(p.x-p.ax)*K;ay=-(p.y-p.ay)*K;gm=9}else if(!p.gas){ay=2.2;gm=2.5}
+    if(p.sol){ax=-(p.x-p.ax)*K;ay=-(p.y-p.ay)*K;gm=9}else if(!p.gas){ay=.6+(p.y<yL?14+(yL-p.y)*80:0);gm=2.5}
     const nz=vt*SF[p.kind]*Math.sqrt(2*gm*h);
     p.vx+=(ax-gm*p.vx)*h+nz*gauss();p.vy+=(ay-gm*p.vy)*h+nz*gauss();
     if(p.kind==="O")p.w+=-p.w*3*h+(Math.random()-.5)*(p.sol?2:20)*vt*h*10}
@@ -269,32 +273,49 @@ class Chamber{
     if(a.kind==="E"||b.kind==="E")continue;
     const md=(this.rad(a)+this.rad(b))*(a.gas&&b.gas?.95:1.01),mx=R*3.6;
     if(d<md){const ps=(md-d)*.5;a.x-=nx*ps;a.y-=ny*ps;b.x+=nx*ps;b.y+=ny*ps;const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(vn<0){a.vx+=vn*nx;a.vy+=vn*ny;b.vx-=vn*nx;b.vy-=vn*ny}}
-    else if(d<mx&&!a.gas&&!b.gas&&!a.sol&&!b.sol){const f=6*(1-(d-md)/(mx-md))*h;a.vx+=nx*f;a.vy+=ny*f;b.vx-=nx*f;b.vy-=ny*f}}}
+    else if(d<mx&&!a.gas&&!b.gas&&!a.sol&&!b.sol){const f=3*(1-(d-md)/(mx-md))*h;a.vx+=nx*f;a.vy+=ny*f;b.vx-=nx*f;b.vy-=ny*f}}}
    for(const p of A){const r=this.rad(p);p.x+=p.vx*h;p.y+=p.vy*h;if(p.kind==="O")p.a+=p.w*h;
     if(p.x-r<this.l){p.x=this.l+r;p.vx=Math.abs(p.vx)}if(p.x+r>this.r){p.x=this.r-r;p.vx=-Math.abs(p.vx)}
     if(p.y+r>this.b){p.y=this.b-r;p.vy=-Math.abs(p.vy)}if(p.y-r<top){p.y=top+r;p.vy=Math.abs(p.vy)+Math.max(0,this.pv)*.5}}}
   this.trail.push([this.tr.x,this.tr.y]);if(this.trail.length>100)this.trail.shift()}
  render(){const[W,H,d]=fit(this.cv),c=this.cv.getContext("2d"),S=this.S,R=this.R,s=Math.min(W,H),ox=(W-s)/2,oy=(H-s)/2;
   c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,W,H);
-  const X=x=>ox+x*s,Y=y=>oy+y*s,top=this.b-this.pistonH,rs=R*s;
-  if(S.T>2500){const e=Math.min(1,(Math.log10(S.T)-3.4)/1.6),m=S.i,rr=Math.round(255-80*m),gg=Math.round(150+40*m),bb=Math.round(60+195*m);
-   c.fillStyle=`rgba(${rr},${gg},${bb},${.08+.28*e})`;c.fillRect(X(this.l),Y(top),(this.r-this.l)*s,(this.b-top)*s)}
-  c.strokeStyle=C.fg;c.lineWidth=1.5;c.beginPath();c.moveTo(X(this.l),Y(.03));c.lineTo(X(this.l),Y(this.b));c.lineTo(X(this.r),Y(this.b));c.lineTo(X(this.r),Y(.03));c.stroke();
+  const X=x=>ox+x*s,Y=y=>oy+y*s,top=this.b-this.pistonH,rs=R*s,hot=S.T>2500?Math.min(1,(Math.log10(S.T)-3.4)/1.6):0,gc=glowRGB(S.T,S.i);
+  {const L0=X(this.l),W0=(this.r-this.l)*s,y0=Y(top),y1=Y(this.b),liq=S.li>.02,yl=Y(this.lvl());
+   if(S.ga>.01){c.fillStyle=`rgba(249,115,22,${.04+.1*S.ga})`;c.fillRect(L0,y0,W0,Math.max(0,(liq?yl:y1)-y0))}
+   if(liq){const g=c.createLinearGradient(0,yl,0,y1),wy=k=>yl+(Math.sin(k*.9+this.t*2.4)*.0035+Math.sin(k*.37-this.t*1.6)*.0025)*s;
+    c.globalAlpha=Math.min(1,S.li*4);g.addColorStop(0,"rgba(96,165,250,.20)");g.addColorStop(1,"rgba(37,99,235,.42)");c.fillStyle=g;c.beginPath();c.moveTo(L0,y1);for(let k=0;k<=24;k++)c.lineTo(L0+W0*k/24,wy(k));c.lineTo(L0+W0,y1);c.closePath();c.fill();
+    c.strokeStyle="rgba(147,197,253,.95)";c.lineWidth=2;c.beginPath();for(let k=0;k<=24;k++)k?c.lineTo(L0+W0*k/24,wy(k)):c.moveTo(L0,wy(0));c.stroke();c.globalAlpha=1}
+   const sl=this.M.filter(m=>m.o.act&&m.o.sol);
+   if(sl.length&&S.so>.02){let x0=1,x1=0,ya=1,yb=0;sl.forEach(m=>{x0=Math.min(x0,m.o.ax);x1=Math.max(x1,m.o.ax);ya=Math.min(ya,m.o.ay);yb=Math.max(yb,m.o.ay)});
+    const pd=R*1.6,bx=X(x0-pd),by=Y(ya-pd),bw=(x1-x0+2*pd)*s,bh=(yb-ya+2*pd)*s,g=c.createLinearGradient(0,by,0,by+bh);
+    g.addColorStop(0,`rgba(214,244,255,${.35+.5*S.so})`);g.addColorStop(1,`rgba(140,210,238,${.35+.5*S.so})`);
+    c.fillStyle=g;c.strokeStyle=`rgba(240,251,255,${.9*S.so})`;c.lineWidth=2;c.beginPath();c.roundRect?c.roundRect(bx,by,bw,bh,.02*s):c.rect(bx,by,bw,bh);c.fill();c.stroke();
+    c.strokeStyle=`rgba(255,255,255,${.7*S.so})`;c.lineWidth=2;c.beginPath();c.moveTo(bx+bw*.12,by+bh*.22);c.lineTo(bx+bw*.3,by+bh*.08);c.moveTo(bx+bw*.62,by+bh*.18);c.lineTo(bx+bw*.74,by+bh*.07);c.stroke()}}
+  if(hot){const L0=X(this.l),T0=Y(top),W0=(this.r-this.l)*s,H0=(this.b-top)*s,g=c.createRadialGradient(L0+W0/2,T0+H0/2,0,L0+W0/2,T0+H0/2,Math.max(W0,H0)*.7);
+   c.fillStyle=`rgba(5,3,16,${.8*hot})`;c.fillRect(L0,T0,W0,H0);
+   g.addColorStop(0,`rgba(${gc},${.5*hot})`);g.addColorStop(1,`rgba(${gc},0)`);
+   c.globalCompositeOperation="lighter";c.fillStyle=g;c.fillRect(L0,T0,W0,H0);c.globalCompositeOperation="source-over";
+   c.shadowColor=`rgba(${gc},.9)`;c.shadowBlur=22*hot}
+  c.strokeStyle=C.fg;c.lineWidth=1.5;c.beginPath();c.moveTo(X(this.l),Y(.03));c.lineTo(X(this.l),Y(this.b));c.lineTo(X(this.r),Y(this.b));c.lineTo(X(this.r),Y(.03));c.stroke();c.shadowBlur=0;
   c.fillStyle=C.fg;c.fillRect(X(this.l)-2,Y(top)-.02*s,(this.r-this.l)*s+4,.02*s);
   const rt=Math.max(.02,top-.1);c.fillRect(X(.5)-.008*s,Y(rt),.016*s,Y(top)-.02*s-Y(rt));
   c.save();c.beginPath();c.rect(X(this.l),Y(top),(this.r-this.l)*s,(this.b-top)*s);c.clip();
   const M=this.M,hs=C.bg==="#fff"?"#777":"#888";
-  if(O.bond){c.strokeStyle=C.fg;c.globalAlpha=.6;c.lineWidth=1.5;c.beginPath();
-   for(let i=0;i<M.length;i++){const a=M[i].o;if(a.gas)continue;for(let j=i+1;j<M.length;j++){const b=M[j].o;if(b.gas)continue;if(Math.hypot(a.x-b.x,a.y-b.y)<(a.sol&&b.sol?R*4.2:R*3.3)){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}}c.stroke();c.globalAlpha=1}
+  {c.strokeStyle=C.fg;c.globalAlpha=.6;c.lineWidth=1.5;c.beginPath();
+   for(let i=0;i<M.length;i++){const a=M[i].o;if(a.gas)continue;for(let j=i+1;j<M.length;j++){const b=M[j].o;if(b.gas)continue;if((O.bond||(a.sol&&b.sol))&&Math.hypot(a.x-b.x,a.y-b.y)<(a.sol&&b.sol?R*4.2:R*3.3)){c.moveTo(X(a.x),Y(a.y));c.lineTo(X(b.x),Y(b.y))}}}c.stroke();c.globalAlpha=1}
   const dot=(e,fill,rr,stroke)=>{c.fillStyle=fill;c.beginPath();c.arc(X(e.x),Y(e.y),rr,0,6.29);c.fill();if(stroke){c.strokeStyle=stroke;c.lineWidth=1;c.stroke()}};
   for(const m of M){const o=m.o,x=X(o.x),y=Y(o.y);
-   if(S.T>3000&&o.gas){const gr=rs*(3+5*S.i),g=c.createRadialGradient(x,y,0,x,y,gr);g.addColorStop(0,S.i>.3?"rgba(170,140,255,.5)":"rgba(255,170,60,.4)");g.addColorStop(1,"rgba(0,0,0,0)");c.fillStyle=g;c.beginPath();c.arc(x,y,gr,0,6.29);c.fill()}
+   if(hot&&o.gas){const fl=1+.18*Math.sin(this.t*22+o.ph*3),gr=rs*(3+7*S.i)*fl,g=c.createRadialGradient(x,y,0,x,y,gr);
+    g.addColorStop(0,`rgba(${gc},${.35+.4*hot})`);g.addColorStop(.35,`rgba(${gc},${.18*hot})`);g.addColorStop(1,`rgba(${gc},0)`);
+    c.globalCompositeOperation="lighter";c.fillStyle=g;c.beginPath();c.arc(x,y,gr,0,6.29);c.fill();c.globalCompositeOperation="source-over"}
    if(!m.dis){
     for(const sg of[-1,1]){const an=o.a+sg*.9;c.fillStyle="#fff";c.strokeStyle=hs;c.lineWidth=1;c.beginPath();c.arc(x+Math.cos(an)*rs*1.15,y+Math.sin(an)*rs*1.15,rs*.62,0,6.29);c.fill();c.stroke()}
     dot(o,"#e5352b",rs*1.05)}
-   else dot(o,o.ion?"#a45cff":"#e5352b",rs*1.05);
-   for(const q of m.h)if(q.act)dot(q,q.ion?"#9fd0ff":"#fff",rs*.62,hs);
-   for(const q of m.e)if(q.act)dot(q,"#38bdf8",rs*.24)}
+   else dot(o,o.ion?"#d4b8ff":"#e5352b",rs*1.05);
+   for(const q of m.h)if(q.act)dot(q,q.ion?"#d8eeff":"#fff",rs*.62,hs);
+   for(const q of m.e)if(q.act){const ex=X(q.x),ey=Y(q.y),g=c.createRadialGradient(ex,ey,0,ex,ey,rs*2.4);g.addColorStop(0,"rgba(120,220,255,.8)");g.addColorStop(1,"rgba(120,220,255,0)");
+    c.globalCompositeOperation="lighter";c.fillStyle=g;c.beginPath();c.arc(ex,ey,rs*2.4,0,6.29);c.fill();c.globalCompositeOperation="source-over";dot(q,"#e8faff",rs*.26)}}
   if(O.vec){c.strokeStyle=C.fg;c.lineWidth=1.2;c.beginPath();for(const e of this.E)if(e.act&&e.kind!=="E"){c.moveTo(X(e.x),Y(e.y));c.lineTo(X(e.x+e.vx*.12),Y(e.y+e.vy*.12))}c.stroke()}
   if(O.trail&&this.trail.length>1){c.strokeStyle="#eab308";c.lineWidth=2;c.beginPath();this.trail.forEach(([a,b],i)=>i?c.lineTo(X(a),Y(b)):c.moveTo(X(a),Y(b)));c.stroke();
    c.beginPath();c.arc(X(this.tr.x),Y(this.tr.y),rs*1.9,0,6.29);c.stroke()}
@@ -312,6 +333,8 @@ class Graph{
   const f=T=>this.log?Math.log10(Math.max(T,.1)):T;let y0,y1;
   if(this.log){y0=-1;y1=Math.ceil(Math.log10(mx)+.2)}else{y0=0;y1=mx*1.08}
   const tx=t=>L+pw*(t/Math.max(this.el,1)),ty=T=>Tp+ph*(1-(f(T)-y0)/(y1-y0));
+  [[0,TM,"氷"],[TM,TB,"水"],[TB,4500,"水蒸気"],[4500,1e30,"解離・電離"]].forEach(([a,b,n],i)=>{const ya=Math.min(Tp+ph,Math.max(Tp,ty(a))),yb=Math.min(Tp+ph,Math.max(Tp,ty(b)));if(ya-yb<1)return;
+   c.globalAlpha=i%2?.1:.04;c.fillStyle=C.fg;c.fillRect(L,yb,pw,ya-yb);c.globalAlpha=1;if(ya-yb>14){c.fillStyle=C.mut;c.font="11px sans-serif";c.textAlign="right";c.fillText(n,W-Rr-4,yb+12)}});
   c.font="11px sans-serif";c.fillStyle=C.mut;c.strokeStyle=C.line;c.lineWidth=1;c.textAlign="right";
   const ticks=[];if(this.log){for(let k=-1;k<=y1;k++)ticks.push(Math.pow(10,k))}else{const st=Math.pow(10,Math.floor(Math.log10(y1/4)));const u=[1,2,5,10].find(m=>y1/(st*m)<=5)*st;for(let v=0;v<=y1;v+=u)ticks.push(v)}
   ticks.forEach(v=>{const y=ty(v);c.beginPath();c.moveTo(L,y);c.lineTo(W-Rr,y);c.stroke();c.fillText(v>=1e5?v.toExponential(0):String(+v.toPrecision(3)),L-6,y+4)});
@@ -336,7 +359,10 @@ const pct=x=>Math.round(x*100)+"%";
 function setMode(m){A.mode=m;["heat","cool","hold"].forEach(k=>$("m-"+k).classList.toggle("on",k===m))}
 function ui(){const S=main.S,pm=PH[S.ph];
   $("tk").innerHTML=fmt(S.T)+"<small>K</small>";$("tc").textContent=fmtC(S.T)+" ℃";
-  $("ph").textContent=pm[0];$("tag-main").textContent=pm[0].replace(/\(.*\)/,"");
+  $("ph").textContent=pm[0];
+  const lad=$("lad");if(!lad.children.length)["氷","水","水蒸気","解離","原子","プラズマ"].forEach(n=>lad.insertAdjacentHTML("beforeend",`<span><i></i><em>${n}</em></span>`));
+  [S.so,S.li,S.ga*(1-S.d),S.d>.02&&S.d<.98?1-Math.abs(2*S.d-1):0,S.ga*S.d*(1-S.i),S.ga*S.d*S.i].forEach((w,k)=>{const sp=lad.children[k];sp.firstChild.style.opacity=w;sp.lastChild.style.color=w>.5?"var(--bg)":"var(--fg)"});
+  $("tag-main").textContent=pm[0].replace(/\(.*\)/,"");
   $("m-t").textContent=graph.el.toFixed(1)+" 秒";
   $("m-v").textContent=(S.V>=1e4?S.V.toExponential(2):S.V.toFixed(S.V<10?2:1));
   const fv=v=>v>=299792458?"ほぼ光速(要相対論)":v>2.9979e7?(v/299792458).toFixed(2)+" c(要相対論)":v>=1e4?v.toExponential(2)+" m/s":Math.round(v)+" m/s";
